@@ -1,3 +1,5 @@
+let requestURL = "http://localhost:3000/todos";
+
 let getJSON = function (url) {
   return new Promise((resolve, reject) => {
     let xhr = new XMLHttpRequest();
@@ -20,10 +22,12 @@ let getJSON = function (url) {
   });
 };
 
-let delJSON = function (url, id) {
+let changeJSON = function (url, data) {
   return new Promise((resolve, reject) => {
-    let xhr = new XMLHttpRequest();
-    xhr.open("DELETE", url);
+    var xhr = new XMLHttpRequest();
+    xhr.open("PUT", url, true);
+
+    xhr.setRequestHeader("Content-Type", "application/json");
 
     xhr.onload = function () {
       let status = xhr.status;
@@ -34,9 +38,11 @@ let delJSON = function (url, id) {
       }
     };
 
-    xhr.send(JSON.stringify({ id }));
+    xhr.send(JSON.stringify(data));
   });
 };
+
+
 
 let saveJSON = function (url, data) {
   return new Promise((resolve, reject) => {
@@ -71,74 +77,75 @@ class TodoList {
 
   async addTodos() {
     try {
-      let add = await saveJSON("http://localhost:3000/todos/", {
+      let add = await saveJSON(requestURL, {
         task: input.value,
         complited: false,
       });
     } catch (error) {
       console.log(error);
     }
+
+    this.render();
   }
 
   async getJSONData() {
     try {
-      let data = await getJSON("http://localhost:3000/todos");
-      return data
+      let data = await getJSON(requestURL);
+      return data;
     } catch (error) {
       console.log(new Error(error));
     }
   }
 
-  async changeStatus() {
-    let id = await saveJSON("http://localhost:3000/todos")
-    return id
-  }
-
-  status() {
-    this.changeStatus()
-      .then(data => console.log(data))
-  }
-
-  async removeTodos() {
-    try {
-      let del = await delJSON("http://localhost:3000/todos", 3);
-    } catch (error) {
-      console.error(error);
-    }
-  }
-
-  render() {
-    let result = ''
+  status(id) {
     this.getJSONData()
-      .then(data => {
+      .then((data) => {
+        for (let item of data) {
+          if (item.id == id) {
+            item.complited = !item.complited;
+            changeJSON(`${requestURL}/${id}`, {
+              task: item.task,
+              complited: item.complited,
+            });
+          }
+        }
+      })
+      .catch((error) => error);
+
+      this.render()
+  }
+  
+  render() {
+    let result = "";
+    this.getJSONData()
+      .then((data) => {
         for (const item of data) {
-          if(!item) {
-            return
+          if (!item) {
+            return;
           } else {
-            result += 
-            `<li data-id="${item.id}" class="todo-item">
+            result += `<li data-id="${item.id}" class="todo-item ${
+              item.complited ? "green" : "yellow"
+            }">
                 ${item.task}
               <button class="completed-button"> &#9745; </button>
               <button class="trash-button"> &#10006; </button> 
-            </li>`
+            </li>`;
           }
-        } 
-        list.innerHTML = result
-    }).catch(error => error)
+        }
+        list.innerHTML = result;
+      })
+      .catch((error) => error);
   }
 }
 
-let a = new TodoList();
-
+let todo = new TodoList();
+todo.render();
 
 list.addEventListener("click", (e) => {
   let target = e.target;
   let getId = target.parentElement.dataset.id;
   if (target.className === "completed-button") {
-    console.log(getId)
-    target.parentElement.classList.toggle("green");
-  } else if (target.className === "trash-button") {
-    
+    todo.status(getId);
   }
 });
 
@@ -146,10 +153,7 @@ main.addEventListener("click", (e) => {
   e.preventDefault();
   let target = e.target;
   if (target.className === "todo-button") {
-    a.addTodos()
+    todo.addTodos();
     input.value = "";
-  } else if (target.className === "search-button") {
-    a.removeTodos();
   }
 });
-a.render();
